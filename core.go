@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vvampirius/mygolibs/belinvestbankExchange"
 	"github.com/vvampirius/mygolibs/telegram"
 	"io/ioutil"
@@ -38,6 +39,10 @@ type Core struct {
 	Me telegram.Me
 	Token string
 	saveMu sync.Mutex
+	priceGauge prometheus.Gauge
+	getCurrenciesError prometheus.Counter
+	sendMessageError prometheus.Counter
+	commandsCount prometheus.Counter
 }
 
 func (core *Core) Raise(last, current CurrencyCheck) {
@@ -51,7 +56,7 @@ func (core *Core) Raise(last, current CurrencyCheck) {
 				log.Printf("Removing %d from chats\n", chat.Id)
 				delete(core.Chats, chat.Id)
 				go core.Save()
-			}
+			} else { core.sendMessageError.Inc() }
 		}
 	}
 }
@@ -67,7 +72,7 @@ func (core *Core) Fall(last, current CurrencyCheck) {
 				log.Printf("Removing %d from chats\n", chat.Id)
 				delete(core.Chats, chat.Id)
 				go core.Save()
-			}
+			} else { core.sendMessageError.Inc() }
 		}
 	}
 }
@@ -79,8 +84,9 @@ func (core *Core) checkRoutine() {
 			if core.LastCheck != nil && currency.Value > core.LastCheck.Value { go core.Raise(*core.LastCheck, currency)}
 			if core.LastCheck != nil && currency.Value < core.LastCheck.Value { go core.Fall(*core.LastCheck, currency)}
 			core.LastCheck = &currency
+			core.priceGauge.Set(currency.Value)
 			core.Save()
-		}
+		} else { core.getCurrenciesError.Inc() }
 		time.Sleep(20 * time.Minute)
 	}
 }
@@ -90,15 +96,6 @@ func (core *Core) getCurrencyCheck() (CurrencyCheck, error) {
 	//f, _ := os.Open(path.Join(core.StoragePath, `rates.html`))
 	//defer f.Close()
 	//---------------------------
-	//request, _ := http.NewRequest(http.MethodGet, belinvestbankExchange.URL, nil)
-	//request.Header.Set(`User-Agent`, `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36`)
-	//client := http.Client{}
-	//response, err := client.Do(request)
-	//if err != nil {
-		//log.Println(err)
-		//return CurrencyCheck{}, err
-	//}
-	//defer response.Body.Close()
 
 	currencies, err := belinvestbankExchange.Get(nil)
 	if err != nil { return CurrencyCheck{}, err	}
@@ -136,6 +133,7 @@ func (core *Core) httpHandler(wr http.ResponseWriter, request *http.Request) {
 	log.Println(update)
 
 	if update.Message.IsBotCommand() {
+		core.commandsCount.Inc()
 		chatId := update.Message.Chat.Id
 		switch update.Message.Text {
 		case `/start`:
@@ -209,6 +207,30 @@ func (core *Core) Load() error {
 }
 
 func NewCore(storagePath, token, callbackUrl string) (*Core, error) {
+	priceGauge := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "price",
+		Help: "USD price",
+	})
+	if err := prometheus.Register(priceGauge); err != nil { log.Fatalln(err.Error()) }
+
+	getCurrenciesError := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: `getCurrenciesError`,
+		Help: `Error counter of get currencies from belinvestbank.by`,
+	})
+	if err := prometheus.Register(getCurrenciesError); err != nil { log.Fatalln(err.Error()) }
+
+	sendMessageError := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: `sendMessageError`,
+		Help: `Error counter of sending messages to Telegram`,
+	})
+	if err := prometheus.Register(sendMessageError); err != nil { log.Fatalln(err.Error()) }
+
+	commandsCount := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: `commands`,
+		Help: `Commands counter`,
+	})
+	if err := prometheus.Register(commandsCount); err != nil { log.Fatalln(err.Error()) }
+
 	me, err := telegram.GetMe(token)
 	if err != nil { return nil, err }
 	log.Printf("Got info from Telegram API: @%s with ID:%d and name '%s'\n", me.Username, me.Id, me.FirstName)
@@ -221,8 +243,19 @@ func NewCore(storagePath, token, callbackUrl string) (*Core, error) {
 		StoragePath: storagePath,
 		Me: me,
 		Token: token,
+		priceGauge: priceGauge,
+		getCurrenciesError: getCurrenciesError,
+		sendMessageError: sendMessageError,
+		commandsCount: commandsCount,
 	}
 	core.Load()
+
+	chatsCount := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: `chats`,
+		Help: `Number of bot consumers`,
+	}, func() float64 { return float64(len(core.Chats)) })
+	if err := prometheus.Register(chatsCount); err != nil { log.Fatalln(err.Error()) }
+
 	//TODO: get updates
 	//TODO: notifications on 10 every month
 	go core.checkRoutine()

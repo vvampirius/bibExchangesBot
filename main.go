@@ -8,12 +8,17 @@ import (
 	"os"
 	"syscall"
 )
+import "github.com/prometheus/client_golang/prometheus/promhttp"
 
-const VERSION  = 0.1
+const VERSION  = 0.2
 
 func helpText() {
 	fmt.Print("# https://github.com/vvampirius/bibExchangesBot\n\n")
 	flag.PrintDefaults()
+}
+
+func Pong(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, `PONG`)
 }
 
 func main() {
@@ -60,6 +65,8 @@ func main() {
 	if err != nil { os.Exit(1) }
 
 	server := http.Server{ Addr: *listen }
+	http.HandleFunc(`/ping`, Pong)
+	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc(`/`, core.httpHandler)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatalln(err.Error())
