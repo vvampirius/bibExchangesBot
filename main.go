@@ -3,14 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
 	"os"
 	"syscall"
 )
-import "github.com/prometheus/client_golang/prometheus/promhttp"
 
-const VERSION  = 0.2
+const VERSION  = 0.3
 
 func helpText() {
 	fmt.Print("# https://github.com/vvampirius/bibExchangesBot\n\n")

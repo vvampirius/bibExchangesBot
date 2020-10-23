@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/vvampirius/bibExchangesBot/nextDate"
 	"github.com/vvampirius/mygolibs/belinvestbankExchange"
 	"github.com/vvampirius/mygolibs/telegram"
 	"io/ioutil"
@@ -43,6 +44,7 @@ type Core struct {
 	getCurrenciesError prometheus.Counter
 	sendMessageError prometheus.Counter
 	commandsCount prometheus.Counter
+	salaryNotifyTimer *time.Timer
 }
 
 func (core *Core) Raise(last, current CurrencyCheck) {
@@ -206,6 +208,34 @@ func (core *Core) Load() error {
 	return nil
 }
 
+func (core *Core) nearSalaryNotifyAfter() time.Duration {
+	notifyDate := nextDate.NearMonthlyDate(time.Now(), 10, `13:00:00`, true)
+	notifyAfter := notifyDate.Sub(time.Now())
+	log.Printf("Salary notification will be at '%v' (after %v).\n", notifyDate, notifyAfter)
+	return notifyAfter
+}
+
+func (core *Core) salaryNotifyRoutine() {
+	msg := `💰💰💰 Похоже сегодня день зарплаты, и тебе вероятно опять стоит следить за курсом. 😉`
+	for {
+		<- core.salaryNotifyTimer.C
+		log.Println(`Sending notification about salary...`)
+		for _, chat := range core.Chats {
+			if chat.Raise && chat.Fall { continue }
+			log.Printf("Notify %d chat\n", chat.Id)
+			if err := telegram.SendMessage(core.Token, chat.Id, msg, false, 0); err != nil {
+				if err.(*telegram.SendMessageError).ErrCode == 403 {
+					log.Printf("Removing %d from chats\n", chat.Id)
+					delete(core.Chats, chat.Id)
+					go core.Save()
+				} else { core.sendMessageError.Inc() }
+			}
+		}
+		core.salaryNotifyTimer = time.NewTimer(core.nearSalaryNotifyAfter())
+	}
+}
+
+
 func NewCore(storagePath, token, callbackUrl string) (*Core, error) {
 	priceGauge := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "price",
@@ -256,9 +286,12 @@ func NewCore(storagePath, token, callbackUrl string) (*Core, error) {
 	}, func() float64 { return float64(len(core.Chats)) })
 	if err := prometheus.Register(chatsCount); err != nil { log.Fatalln(err.Error()) }
 
-	//TODO: get updates
-	//TODO: notifications on 10 every month
+	//TODO: get pull updates
+
 	go core.checkRoutine()
+
+	core.salaryNotifyTimer = time.NewTimer(core.nearSalaryNotifyAfter())
+	go core.salaryNotifyRoutine()
 
 	return &core, nil
 }
