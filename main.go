@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-const VERSION  = 0.3
+const VERSION  = 1.0
 
 func helpText() {
 	fmt.Print("# https://github.com/vvampirius/bibExchangesBot\n\n")

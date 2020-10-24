@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/vvampirius/bibExchangesBot/nextDate"
+	"github.com/vvampirius/mygolibs/nextDate"
 	"github.com/vvampirius/mygolibs/belinvestbankExchange"
 	"github.com/vvampirius/mygolibs/telegram"
 	"io/ioutil"
@@ -285,8 +285,6 @@ func NewCore(storagePath, token, callbackUrl string) (*Core, error) {
 		Help: `Number of bot consumers`,
 	}, func() float64 { return float64(len(core.Chats)) })
 	if err := prometheus.Register(chatsCount); err != nil { log.Fatalln(err.Error()) }
-
-	//TODO: get pull updates
 
 	go core.checkRoutine()
 

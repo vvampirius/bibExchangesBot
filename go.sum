@@ -257,6 +257,8 @@ github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijb
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/vvampirius/mygolibs/belinvestbankExchange v0.0.0-20201023072532-58b39741f3c5 h1:kiZMgIXQV5m8lpSTLsibmVJcxOP0FAzAHKqOR6DMHRs=
 github.com/vvampirius/mygolibs/belinvestbankExchange v0.0.0-20201023072532-58b39741f3c5/go.mod h1:LzHFi6yKf1pHJlhC2mlH880cDTlB2i5WSvjO28Ebk4Q=
+github.com/vvampirius/mygolibs/nextDate v0.0.0-20201024195649-93bc12613326 h1:ulO+gREgvXE56CRy7xtzVDJC7AlMCGn43JAtyjAeHHA=
+github.com/vvampirius/mygolibs/nextDate v0.0.0-20201024195649-93bc12613326/go.mod h1:k7vvZ01c+l+It8t/iFrSDJaRhCyeVnVwQt+phLvUKyM=
 github.com/vvampirius/mygolibs/telegram v0.0.0-20201023072532-58b39741f3c5 h1:IhqNrY/zEOTVSVHtsSsPx3cY5ovBR5512UyH2igkfwA=
 github.com/vvampirius/mygolibs/telegram v0.0.0-20201023072532-58b39741f3c5/go.mod h1:TNpMmMeA69uEWYz3O2oSEtNEwDWcMXb+LdRGiZc+/L8=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
